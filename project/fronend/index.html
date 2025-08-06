@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vosk Speech-to-Text Demo</title>
+</head>
+<body>
+    <h2>Record and Transcribe</h2>
+    <button id="record">Record</button>
+    <button id="stop" disabled>Stop</button>
+    <p id="status"></p>
+    <h3>Result:</h3>
+    <div id="result"></div>
+    <script>
+        let mediaRecorder, audioChunks = [];
+        const recordBtn = document.getElementById('record');
+        const stopBtn = document.getElementById('stop');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+
+        recordBtn.onclick = async () => {
+            audioChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            status.textContent = "Recording...";
+            recordBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        };
+
+        stopBtn.onclick = () => {
+            mediaRecorder.stop();
+            status.textContent = "Processing...";
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'audio.wav');
+
+                const response = await fetch('http://127.0.0.1:5000/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                result.textContent = data.text;
+                status.textContent = "Done.";
+            };
+        };
+    </script>
+</body>
+</html>
